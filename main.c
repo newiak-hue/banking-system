@@ -6,6 +6,7 @@
 #include <time.h>
 #include <ctype.h>
 #include <errno.h>
+//windows and other os have different "make directory" function name
 #ifdef _WIN32
     #include <direct.h>
     #define MKDIR(path) _mkdir(path)
@@ -16,6 +17,7 @@
 #endif
 
 void logAction(char *action) {
+    //function to log action
     FILE *fp = fopen("database/transaction.log", "a");
     if (fp == NULL) {
         perror("Error writing to transaction log");
@@ -38,6 +40,7 @@ void logAction(char *action) {
 }
 
 bool validateIC(char *ic) {
+    //check if inputted ic fits format (12 digits)
     if (strlen(ic) != 12) {
         printf("IC must be exactly 12 digits.\n");
         return false;
@@ -54,6 +57,7 @@ bool validateIC(char *ic) {
 }
 
 bool validateAccount(char *account) {
+    //check if user selected an actual account type
     char *accountTypes[] = {"savings","current" ,"saving"};
     if (strcmp(account, "1") == 0) {
         strcpy(account, "savings");
@@ -72,6 +76,7 @@ bool validateAccount(char *account) {
 }
 
 bool validatePin(char *pin) {
+    //check if pin is in the correct format (4 digits)
     if (strlen(pin) != 4) {
         printf("Pin must be exactly 4 digits.\n");
         return false;
@@ -86,6 +91,7 @@ bool validatePin(char *pin) {
 }
 
 bool checkExists(const char *accNum) {
+    //helper function to check if accounts exists
     FILE *index = fopen("database/index.txt", "r");
     if (index == NULL) {
         return false;
@@ -107,6 +113,7 @@ bool checkExists(const char *accNum) {
 }
 
 void generateAccount(char *output) {
+    //function to generate account number in the correct format (random 7-9 digits)
     while (true) {
         int length = (rand() % 3) + 7;
 
@@ -126,6 +133,7 @@ void generateAccount(char *output) {
 }
 
 bool checkCancel(char *input, char *actionName, char *logMessage) {
+    //helper function to check if user typed "exit" or "cancel"
     char temp[50];
 
     for (int i = 0; i < strlen(input); i++) {
@@ -142,6 +150,7 @@ bool checkCancel(char *input, char *actionName, char *logMessage) {
 }
 
 int loadAcc(char account[][50]) {
+    //function to load account
     FILE *file = fopen("database/index.txt", "r");
     if (!file) {
         printf("No accounts found.\n");
@@ -163,6 +172,7 @@ int loadAcc(char account[][50]) {
 }
 
 bool getAccInfo(char *accFile, char *name, char *ic, char *accType, char *pin,float *balance) {
+    //function to get all the account info (name,ic,account type, pin, balance)
     FILE *acc = fopen(accFile, "r");
     if (acc == NULL) {
         printf("Error opening account file.\n");
@@ -189,6 +199,7 @@ bool getAccInfo(char *accFile, char *name, char *ic, char *accType, char *pin,fl
 }
 
 bool writeAccInfo(char *accFile, char *name, char *ic, char *accType, char *pin,float *balance) {
+    //function to write account info after performing action
     FILE *acc = fopen(accFile, "w");
     if (!acc) {
         printf("Error opening account file.\n");
@@ -214,6 +225,7 @@ void create() {
     printf("Enter your name: ");
     fgets(name, sizeof(name), stdin);
     name[strcspn(name, "\n")] = 0;
+
     if (checkCancel(name,"Account creation cancelled", "Cancelled account creation")) return;
 
     while (true) {
@@ -268,6 +280,7 @@ void create() {
         perror("Error opening account file: ");
         return;
     }
+
     fprintf(file, "Name: %s\n", name);
     fprintf(file, "IC: %s\n", ic);
     fprintf(file, "Account Type: %s\n", accountType);
@@ -275,10 +288,11 @@ void create() {
     fprintf(file, "Balance: %.2f\n", 0.0);
     fclose(file);
     logAction("Account created successfully");
-    printf("Account successfully created!\n");
+    printf("=== CREATION SUCCESSFUL ===\n");
 }
 
 void start() {
+    //function to load account session info and create directory if not exists
     if (MKDIR("database") == 0) {
         printf("New directory created successfully.\n");
     } else {
@@ -424,6 +438,7 @@ void delete() {
 
     fclose(out);
 
+    printf("=== DELETION SUCCESSFUL ===\n");
     printf("Account '%s' deleted successfully.\n", accDelete);
     logAction("Account deleted successfully");
 }
@@ -515,9 +530,9 @@ void deposit() {
         return;
     }
 
+    printf("=== DEPOSIT SUCCESSFUL ===\n");
     printf("Successfully deposited RM %.2f into account %s.\n", amount, accDeposit);
     printf("New balance: RM %.2f\n", balance);
-
     logAction("Deposited amount successfully");
 }
 
@@ -618,9 +633,9 @@ void withdraw() {
         return;
     }
 
+    printf("=== WITHDRAWAL SUCCESSFUL ===\n");
     printf("Successfully withdrew RM %.2f from account %s.\n", amount, accWithdraw);
     printf("New balance: RM %.2f\n", balance);
-
     logAction("Withdrew amount successfully");
 }
 
@@ -804,8 +819,7 @@ int main() {
     start();
     srand(time(NULL));
 
-    int exit = 0;
-    while (exit == 0) {
+    while (true) {
         printf("\n  ==================================================  \n");
         printf("|| Welcome to The Banking System!                   ||\n");
         printf("|| Choose the following options:                    ||\n");
@@ -845,8 +859,8 @@ int main() {
             remittance();
         } else if (strcmp(userInput, "6") == 0 || strcmp(userInput, "exit") == 0) {
             logAction("Exiting program.");
-            printf("Exiting the program\n");
-            exit = 1;
+            printf("Exiting the program.\n");
+            return 0;
         } else {
             printf("Invalid option, please try again: ");
         }
