@@ -289,6 +289,7 @@ void create() {
     fclose(file);
     logAction("Account created successfully");
     printf("=== CREATION SUCCESSFUL ===\n");
+    printf("Account '%s' created successfully.\n", accNum);
 }
 
 void start() {
@@ -391,6 +392,34 @@ void delete() {
         return;
     }
 
+    if (balance > 0.0f) {
+        char confirm[10];
+
+        printf("\nWARNING: This account still contains RM %.2f.\n", balance);
+        printf("Deleting it will permanently remove the remaining balance.\n");
+
+        while (true) {
+            printf("Are you sure you want to proceed? (Y/N): ");
+            fgets(confirm, sizeof(confirm), stdin);
+            confirm[strcspn(confirm, "\n")] = '\0';
+
+            if (checkCancel(confirm, "Account deletion cancelled.", "Cancelled account deletion"))
+                return;
+
+            // Normalize uppercase/lowercase
+            if (strcasecmp(confirm, "Y") == 0) {
+                printf("Balance confirmed. Proceeding with deletion.\n");
+                break;
+            }
+            else if (strcasecmp(confirm, "N") == 0) {
+                printf("Account deletion cancelled.\n");
+                return;
+            }
+
+            printf("Invalid choice. Please enter Y or N.\n");
+        }
+    }
+
 
     const char *userID = ic + strlen(ic) - 4;
 
@@ -438,7 +467,7 @@ void delete() {
 
     fclose(out);
 
-    printf("=== DELETION SUCCESSFUL ===\n");
+    printf("\n=== DELETION SUCCESSFUL ===\n");
     printf("Account '%s' deleted successfully.\n", accDelete);
     logAction("Account deleted successfully");
 }
@@ -530,7 +559,7 @@ void deposit() {
         return;
     }
 
-    printf("=== DEPOSIT SUCCESSFUL ===\n");
+    printf("\n=== DEPOSIT SUCCESSFUL ===\n");
     printf("Successfully deposited RM %.2f into account %s.\n", amount, accDeposit);
     printf("New balance: RM %.2f\n", balance);
     logAction("Deposited amount successfully");
@@ -633,7 +662,7 @@ void withdraw() {
         return;
     }
 
-    printf("=== WITHDRAWAL SUCCESSFUL ===\n");
+    printf("\n=== WITHDRAWAL SUCCESSFUL ===\n");
     printf("Successfully withdrew RM %.2f from account %s.\n", amount, accWithdraw);
     printf("New balance: RM %.2f\n", balance);
     logAction("Withdrew amount successfully");
@@ -705,7 +734,7 @@ void remittance() {
         return;
     }
 
-    printf("\nChoose the RECEIVER account:\n");
+    printf("Choose the RECEIVER account:\n");
 
     for (int i = 0, display = 1; i < count; i++) {
         if (i == senderIndex) continue; // skip sender
@@ -777,7 +806,11 @@ void remittance() {
         rate = 0.03;
     }
 
-    float maxSendable = senderBalance / (1 + rate);
+    double maxSendable = senderBalance / (1 + rate);
+    if (maxSendable <= 0) {
+        printf("Sender account has insufficient balance to perform remittance.\n");
+        return;
+    }
 
     while (true) {
         printf("Enter remittance amount (Maximum sendable: RM %.2f): RM ", maxSendable);
