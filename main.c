@@ -18,15 +18,16 @@
 
 void logAction(char *action) {
     //function to log action
+    //opens transaction.log file
     FILE *fp = fopen("database/transaction.log", "a");
     if (fp == NULL) {
         perror("Error writing to transaction log");
         return;
     }
-
+    //get time currently
     time_t now = time(NULL);
     struct tm *t = localtime(&now);
-
+    //logs time and action into transaction.log
     fprintf(fp, "[%04d-%02d-%02d %02d:%02d:%02d] %s\n",
             t->tm_year + 1900,
             t->tm_mon + 1,
@@ -40,7 +41,7 @@ void logAction(char *action) {
 }
 
 bool validateIC(char *ic) {
-    //check if inputted ic fits format (12 digits)
+    //check if inputted ic fits format (12 digits only)
     if (strlen(ic) != 12) {
         printf("IC must be exactly 12 digits.\n");
         return false;
@@ -57,20 +58,23 @@ bool validateIC(char *ic) {
 }
 
 bool validateAccount(char *account) {
-    //check if user selected an actual account type
+    //checks if user selected an actual account type
     char *accountTypes[] = {"savings","current" ,"saving"};
+    //lets user type 1 or 2 for selection
     if (strcmp(account, "1") == 0) {
         strcpy(account, "savings");
     }
     else if (strcmp(account, "2") == 0) {
         strcpy(account, "current");
     }
+    //checks if user type one of words in the list
     int length = sizeof(accountTypes) / sizeof(accountTypes[0]);
     for (int i = 0; i < length; i++) {
         if (strcmp(account, accountTypes[i]) == 0) {
             return true;
         }
     }
+
     printf("Please choose one of the two options.\n");
     return false;
 }
@@ -91,7 +95,7 @@ bool validatePin(char *pin) {
 }
 
 bool checkExists(const char *accNum) {
-    //helper function to check if accounts exists
+    //helper function to check if account number already exists inside index.txt
     FILE *index = fopen("database/index.txt", "r");
     if (index == NULL) {
         return false;
@@ -99,6 +103,7 @@ bool checkExists(const char *accNum) {
 
     char line[50];
 
+    //goes thru each line of index.txt and compares with accNum
     while (fgets(line, sizeof(line), index)) {
         line[strcspn(line, "\n")] = 0;
 
@@ -124,7 +129,7 @@ void generateAccount(char *output) {
 
         if (output[0] == '0')
             output[0] = '1' + (rand() % 9);
-
+        //check if account number already exists ,if it exists, generate another account number
         if (!checkExists(output)) {
             return;
         }
@@ -150,7 +155,7 @@ bool checkCancel(char *input, char *actionName, char *logMessage) {
 }
 
 int loadAcc(char account[][50]) {
-    //function to load account
+    //function to load account and return number of accounts
     FILE *file = fopen("database/index.txt", "r");
     if (!file) {
         printf("No accounts found.\n");
@@ -180,7 +185,7 @@ bool getAccInfo(char *accFile, char *name, char *ic, char *accType, char *pin,fl
     }
 
     char line[50];
-
+    //change variables through pointers
     while (fgets(line, sizeof(line), acc) != NULL) {
         if (strncmp(line, "Name:", 5) == 0) {
             sscanf(line, "Name: %49[^\n]", name);
@@ -217,17 +222,21 @@ bool writeAccInfo(char *accFile, char *name, char *ic, char *accType, char *pin,
 }
 
 void create() {
+    //create menu
+    //initialize variables
     char name[50];
     char ic[50];
-    char accountType[50];
+    char accType[50];
     char pin[50];
     printf("Type 'cancel' or 'exit' to cancel account creation at any point.\n");
+
+    //enter name (no validation check except "exit" and "cancel")
     printf("Enter your name: ");
     fgets(name, sizeof(name), stdin);
     name[strcspn(name, "\n")] = 0;
-
     if (checkCancel(name,"Account creation cancelled", "Cancelled account creation")) return;
 
+    //enter IC number with validation check
     while (true) {
         printf("Enter your Identification Card(IC) number (12 digits): ");
         fgets(ic, sizeof(ic), stdin);
@@ -238,19 +247,22 @@ void create() {
         }
     }
 
+    //enter account type
     while (true) {
         printf("Enter your account type (1:Savings / 2:Current): ");
-        fgets(accountType, sizeof(accountType), stdin);
-        accountType[strcspn(accountType, "\n")] = 0;
-        for (int i = 0; accountType[i] != '\0'; i++) {
-            accountType[i] = (char)tolower(accountType[i]);
+        fgets(accType, sizeof(accType), stdin);
+        accType[strcspn(accType, "\n")] = 0;
+        for (int i = 0; accType[i] != '\0'; i++) {
+            accType[i] = (char)tolower(accType[i]);
         }
-        if (checkCancel(accountType,"Account creation cancelled", "Cancelled account creation")) return;
-        if (validateAccount(accountType)) {
+        if (checkCancel(accType,"Account creation cancelled", "Cancelled account creation")) return;
+        if (validateAccount(accType)) {
             break;
         }
     }
 
+
+    //enter pin
     while (true) {
         printf("Enter your 4-digit PIN: ");
         fgets(pin, sizeof(pin), stdin);
@@ -261,10 +273,12 @@ void create() {
         }
     }
 
+    //generate new account number for account
     char accNum[50];
     char fileName[50];
     generateAccount(accNum);
 
+    //inserts into index.txt
     sprintf(fileName, "database/index.txt");
     FILE *fp1 = fopen("database/index.txt", "a");
     if (fp1 == NULL) {
@@ -274,26 +288,28 @@ void create() {
     fprintf(fp1, "%s\n", accNum);
     fclose(fp1);
 
+    //create new account file
     snprintf(fileName, sizeof(fileName), "database/%s.txt", accNum);
     FILE *file = fopen(fileName, "w");
     if (file == NULL) {
         perror("Error opening account file: ");
         return;
     }
-
+    //inserts data into file
     fprintf(file, "Name: %s\n", name);
     fprintf(file, "IC: %s\n", ic);
-    fprintf(file, "Account Type: %s\n", accountType);
+    fprintf(file, "Account Type: %s\n", accType);
     fprintf(file, "PIN: %s\n", pin);
     fprintf(file, "Balance: %.2f\n", 0.0);
     fclose(file);
+    //logs the action
     logAction("Account created successfully");
     printf("=== CREATION SUCCESSFUL ===\n");
     printf("Account '%s' created successfully.\n", accNum);
 }
 
 void start() {
-    //function to load account session info and create directory if not exists
+    //function to load account session info and create database directory and index file if not exists
     if (MKDIR("database") == 0) {
         printf("New directory created successfully.\n");
     } else {
@@ -304,7 +320,7 @@ void start() {
             return;
         }
     }
-
+    //creates index.txt if not exists
     FILE *file = fopen("database/index.txt", "r");
     if (file == NULL) {
         file = fopen("database/index.txt", "w");
@@ -317,7 +333,7 @@ void start() {
         printf("No accounts found.\n");
         return;
     }
-
+    //load session info during launch
     int count = 0;
     char line[50];
     while (fgets(line, sizeof(line), file) != NULL) {
@@ -344,6 +360,8 @@ void start() {
 }
 
 void delete() {
+    //delete menu
+    //load all accounts
     char account[100][50];
     int count = loadAcc(account);
 
@@ -356,7 +374,7 @@ void delete() {
 
     int choice = 0;
     char buf[20];
-
+    //input account to delete with validation
     while (true) {
         printf("Choose account to delete: ");
         if (!fgets(buf, sizeof(buf), stdin)) {
@@ -369,6 +387,7 @@ void delete() {
         if (choice >= 1 && choice <= count) {
             break;
         }
+        //compare user input with list of accounts
         int found = 0;
         for (int i = 0; i < count; i++) {
             if (strcmp(account[i], buf) == 0) {
@@ -380,7 +399,7 @@ void delete() {
         if (found == 1) break;
         printf("Invalid choice. Try again.\n");
     }
-
+    //attempts to load selected account info
     char *accDelete = account[choice - 1];
     char accFile[150];
     snprintf(accFile, sizeof(accFile), "database/%s.txt", accDelete);
@@ -392,6 +411,7 @@ void delete() {
         return;
     }
 
+    //checks if selected account still has balance, if yes, asks user for further confirmation
     if (balance > 0.0f) {
         char confirm[10];
 
@@ -403,30 +423,27 @@ void delete() {
             fgets(confirm, sizeof(confirm), stdin);
             confirm[strcspn(confirm, "\n")] = '\0';
 
-            if (checkCancel(confirm, "Account deletion cancelled.", "Cancelled account deletion"))
-                return;
-
-            // Normalize uppercase/lowercase
+            if (checkCancel(confirm, "Account deletion cancelled.", "Cancelled account deletion")) return;
             if (strcasecmp(confirm, "Y") == 0) {
                 printf("Balance confirmed. Proceeding with deletion.\n");
                 break;
             }
-            else if (strcasecmp(confirm, "N") == 0) {
+            if (strcasecmp(confirm, "N") == 0) {
                 printf("Account deletion cancelled.\n");
                 return;
             }
-
             printf("Invalid choice. Please enter Y or N.\n");
         }
     }
 
-
+    //gets last 4 digit of user ic
     const char *userID = ic + strlen(ic) - 4;
-
+    //initialize user inputs
     char inputAcc[50], inputIC[10], inputPIN[10];
 
     printf("--- Account Confirmation Required ---\n");
 
+    //verification, gets user input for account number, last 4 digit of ic, and pin
     printf("Reenter account number: ");
     fgets(inputAcc, sizeof(inputAcc), stdin);
     inputAcc[strcspn(inputAcc, "\n")] = '\0';
@@ -442,23 +459,24 @@ void delete() {
     inputPIN[strcspn(inputPIN, "\n")] = '\0';
     if (checkCancel(inputPIN,"Account deletion cancelled","Cancelled account deletion")) return;
 
+    //checks all user input with the loaded account info
     if (strcmp(inputAcc, accDelete) == 0 && strcmp(inputIC, userID) == 0 && strcmp(inputPIN, pin) == 0){
         printf("Verification successful. Account will be deleted.\n");
     } else {
         printf("Verification failed. Account will NOT be deleted, returning to menu...");
         return;
     }
-
+    //attempts to remove file
     if (remove(accFile) != 0) {
         printf("Warning: could not delete data file '%s'\n", accFile);
     }
-
+    //deletes entry from index.txt
     FILE *out = fopen("database/index.txt", "w");
     if (!out) {
         printf("Error writing index file\n");
         return;
     }
-
+    //rewrites the index.txt list by skipping the deleted account (choice-1)
     for (int i = 0; i < count; i++) {
         if (i != choice - 1) {
             fprintf(out, "%s\n", account[i]);
@@ -473,7 +491,9 @@ void delete() {
 }
 
 void deposit() {
+    //deposit menu
     char account[100][50];
+    //load all accounts info
     int count = loadAcc(account);
 
     printf("Type 'cancel' or 'exit' to cancel depositing amount at any point.\n");
@@ -486,6 +506,7 @@ void deposit() {
     int choice = 0;
     char buf[20];
 
+    //prompt user to choose account to deposit
     while (true) {
         printf("Choose account to deposit: ");
         if (!fgets(buf, sizeof(buf), stdin)) {
@@ -498,6 +519,7 @@ void deposit() {
         if (choice >= 1 && choice <= count) {
             break;
         }
+        //compare user input with list of accounts
         int found = 0;
         for (int i = 0; i < count; i++) {
             if (strcmp(account[i], buf) == 0) {
@@ -509,7 +531,7 @@ void deposit() {
         if (found == 1) break;
         printf("Invalid choice. Try again.\n");
     }
-
+    //attempts to get account info
     char *accDeposit = account[choice - 1];
     char accFile[150];
     snprintf(accFile, sizeof(accFile), "database/%s.txt", accDeposit);
@@ -523,7 +545,7 @@ void deposit() {
 
     char inputPIN[10], inputBalance[50];
     float amount;
-
+    //prompts user to input a restricted amount
     while (true) {
         printf("Enter amount to deposit (must be > RM0 and <= RM50,000): ");
         fgets(inputBalance, sizeof(inputBalance), stdin);
@@ -539,12 +561,13 @@ void deposit() {
             break;
         }
     }
-
+    //enter pin
     printf("Enter 4-digit PIN to verify: ");
     fgets(inputPIN, sizeof(inputPIN), stdin);
     inputPIN[strcspn(inputPIN, "\n")] = '\0';
     if (checkCancel(inputPIN,"Depositing amount","Cancelled depositing amount")) return;
 
+    //checks pin
     if (strcmp(inputPIN, pin) == 0) {
         printf("Verification successful.\n");
     } else {
@@ -566,6 +589,7 @@ void deposit() {
 }
 
 void withdraw() {
+    //withdraw menu (same as deposit, wont comment on it)
     char account[100][50];
     int count = loadAcc(account);
 
@@ -578,7 +602,6 @@ void withdraw() {
 
     int choice = 0;
     char buf[20];
-
     while (true) {
         printf("Choose account to withdraw from: ");
         if (!fgets(buf, sizeof(buf), stdin)) {
@@ -669,9 +692,10 @@ void withdraw() {
 }
 
 void remittance() {
+    //remittance menu
     char account[100][50];
     int count = loadAcc(account);
-
+    //checks if there's more than 2 account existing
     if (count < 2) {
         printf("Not enough accounts to perform remittance.\n");
         return;
@@ -679,11 +703,12 @@ void remittance() {
 
     printf("Type 'cancel' or 'exit' to cancel remittance at any point.\n");
 
+    //prompts user to choose sender account
     printf("Choose the SENDER account: \n");
     for (int i = 0; i < count; i++) {
         printf("%d: %s\n", i + 1, account[i]);
     }
-
+    //attempts to find sender
     int senderIndex = 0;
     char buf[50];
 
@@ -710,6 +735,7 @@ void remittance() {
         printf("Invalid choice. Try again.\n");
     }
 
+    //attempts to get sender info
     char senderAcc[50];
     strcpy(senderAcc, account[senderIndex]);
 
@@ -723,12 +749,14 @@ void remittance() {
         return;
     }
 
+    //enter sender pin
     char inputPIN[10];
     printf("Enter 4-digit PIN for account %s: ", senderAcc);
     fgets(inputPIN, sizeof(inputPIN), stdin);
     inputPIN[strcspn(inputPIN, "\n")] = '\0';
     if (checkCancel(inputPIN,"Remittance cancelled.","Cancelled remittance")) return;
 
+    //check pin
     if (strcmp(inputPIN, senderPIN) != 0) {
         printf("Incorrect PIN. Returning to menu...\n");
         return;
@@ -736,11 +764,13 @@ void remittance() {
 
     printf("Choose the RECEIVER account:\n");
 
+    //prints out accounts list again but skipping sender
     for (int i = 0, display = 1; i < count; i++) {
-        if (i == senderIndex) continue; // skip sender
+        if (i == senderIndex) continue;
         printf("%d: %s\n", display++, account[i]);
     }
 
+    //attempts to find receiver account
     int receiverIndex = 0;
 
     while (true) {
@@ -750,7 +780,7 @@ void remittance() {
         if (checkCancel(buf, "Remittance cancelled.", "Cancelled remittance")) return;
 
         int choice = atoi(buf);
-
+        //since the display list is off by one (deleted sender), readjust the option numbers
         int actualIndex = -1;
         int display = 1;
 
@@ -782,6 +812,7 @@ void remittance() {
         printf("Invalid choice. Try again.\n");
     }
 
+    //attempts to get receiver info
     char receiverAcc[50];
     strcpy(receiverAcc, account[receiverIndex]);
 
@@ -795,6 +826,7 @@ void remittance() {
         return;
     }
 
+    //get the rate of fee by getting account type of both receiver and sender
     float amount;
     float fee = 0;
     float rate = 0;
@@ -806,12 +838,14 @@ void remittance() {
         rate = 0.03;
     }
 
+    //get max sendable amount
     double maxSendable = senderBalance / (1 + rate);
     if (maxSendable <= 0) {
         printf("Sender account has insufficient balance to perform remittance.\n");
         return;
     }
 
+    //prompts user to input amount
     while (true) {
         printf("Enter remittance amount (Maximum sendable: RM %.2f): RM ", maxSendable);
         fgets(buf, sizeof(buf), stdin);
@@ -830,6 +864,7 @@ void remittance() {
     senderBalance -= total;
     receiverBalance += amount;
 
+    //attempts to write info into account
     if (!writeAccInfo(senderFile, senderName, senderIC, senderType, senderPIN, &senderBalance) ||
         !writeAccInfo(receiverFile, receiverName, receiverIC, receiverType, receiverPIN, &receiverBalance)) {
         printf("Error: Unable to load account info. Remitting cancelled");
@@ -849,7 +884,9 @@ void remittance() {
 }
 
 int main() {
+    //main menu
     start();
+    //seed random generator for generating account number function
     srand(time(NULL));
 
     while (true) {
@@ -866,6 +903,7 @@ int main() {
         printf("||                                                  ||\n");
         printf("  ==================================================  \n");
 
+        //prompts user to input an option
         char userInput[50];
         printf("Enter an option: ");
         fgets(userInput, sizeof(userInput), stdin);
